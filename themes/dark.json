@@ -1,0 +1,23 @@
+{
+    "name": "Dark",
+    "colors": {
+        "bg": "#1A1A2E",
+        "fg": "#E0E0E0",
+        "card_bg": "#16213E",
+        "card_border": "#2A2A4A",
+        "accent_stand": "#4CAF50",
+        "accent_eye": "#FFB300",
+        "accent_stand_bg": "#1B3A1B",
+        "accent_eye_bg": "#3A3A1B",
+        "muted": "#9E9E9E",
+        "slider_bg": "#2A2A4A",
+        "slider_progress": "#4CAF50",
+        "text_primary": "#E0E0E0",
+        "text_secondary": "#9E9E9E",
+        "dropdown_bg": "#16213E",
+        "dropdown_fg": "#E0E0E0",
+        "button_bg": "#4CAF50",
+        "button_fg": "#FFFFFF",
+        "button_hover": "#388E3C"
+    }
+}

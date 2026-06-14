@@ -1,0 +1,23 @@
+{
+    "name": "High Contrast",
+    "colors": {
+        "bg": "#000000",
+        "fg": "#FFFFFF",
+        "card_bg": "#1A1A1A",
+        "card_border": "#FFFFFF",
+        "accent_stand": "#00FF00",
+        "accent_eye": "#FFFF00",
+        "accent_stand_bg": "#003300",
+        "accent_eye_bg": "#333300",
+        "muted": "#CCCCCC",
+        "slider_bg": "#333333",
+        "slider_progress": "#00FF00",
+        "text_primary": "#FFFFFF",
+        "text_secondary": "#CCCCCC",
+        "dropdown_bg": "#1A1A1A",
+        "dropdown_fg": "#FFFFFF",
+        "button_bg": "#00FF00",
+        "button_fg": "#000000",
+        "button_hover": "#00CC00"
+    }
+}

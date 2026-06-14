@@ -1,0 +1,23 @@
+{
+    "name": "Light",
+    "colors": {
+        "bg": "#F5F5F5",
+        "fg": "#1A1A2E",
+        "card_bg": "#FFFFFF",
+        "card_border": "#E0E0E0",
+        "accent_stand": "#4CAF50",
+        "accent_eye": "#FFB300",
+        "accent_stand_bg": "#E8F5E9",
+        "accent_eye_bg": "#FFF8E1",
+        "muted": "#757575",
+        "slider_bg": "#E0E0E0",
+        "slider_progress": "#4CAF50",
+        "text_primary": "#1A1A2E",
+        "text_secondary": "#616161",
+        "dropdown_bg": "#FFFFFF",
+        "dropdown_fg": "#1A1A2E",
+        "button_bg": "#4CAF50",
+        "button_fg": "#FFFFFF",
+        "button_hover": "#388E3C"
+    }
+}
