@@ -12,7 +12,6 @@ A Windows desktop app that reminds you to stand up and rest your eyes, featuring
 - **Custom Themes** — Dark, Light, and High Contrast
 - **Auto-start** — option to launch on Windows startup
 - **Desktop Notifications** — native Windows balloon notifications
-- **Single Instance** — prevents duplicate app instances
 - **Streak Tracking** — shows time since your last break
 
 ## Getting Started
