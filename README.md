@@ -2,6 +2,10 @@
 
 A Windows desktop app that reminds you to stand up and rest your eyes, featuring a system tray icon and customizable settings.
 
+## About
+
+StandTall Pro is a health-focused utility designed for people who spend long hours at their desk. Prolonged sitting and screen staring can lead to back pain, poor posture, and digital eye strain. This app runs quietly in your system tray and sends timely reminders to stand up, stretch, and give your eyes a break using the 20-20-20 rule — helping you build healthier work habits without disrupting your flow.
+
 ![StandTall Pro Screenshot](screenshot.png)
 
 ## Features
