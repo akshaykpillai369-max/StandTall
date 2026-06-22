@@ -12,7 +12,7 @@ if %errorlevel% neq 0 (
 
 echo.
 echo Step 2: Running PyInstaller...
-pyinstaller --onefile --windowed ^
+pyinstaller --onedir --windowed ^
     --name "StandTall Pro" ^
     --icon assets\icon.ico ^
     --paths src ^
