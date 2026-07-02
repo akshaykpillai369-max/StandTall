@@ -50,7 +50,7 @@ build.bat
 
 The executable will be created in the `dist/` folder.
 
-###Alternative way
+### Alternative installation methods
 
 1, Download the zip file from the assets
 2, Unzip it
