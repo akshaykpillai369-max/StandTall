@@ -52,11 +52,11 @@ The executable will be created in the `dist/` folder.
 
 ### Alternative installation methods
 
-1, Download the zip file from the assets
-2, Unzip it
-3, Open the exe file
-4, It does not show any windows at first; look at the system tray and right-click the application, then select Settings
-5, Done. Now  you can adjust the remainder
+- Download the zip file from the assets
+- Unzip it
+- Open the exe file
+- It does not show any windows at first; look at the system tray and right-click the application, then select Settings
+- Done. Now  you can adjust the remainder
 ## Configuration
 
 Settings are stored in `config.json`:
