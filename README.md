@@ -49,7 +49,9 @@ build.bat
 ```
 
 The executable will be created in the `dist/` folder.
-------------------------------------------OR---------------------
+
+###Alternative way
+
 1, Download the zip file from the assets
 2, Unzip it
 3, Open the exe file
