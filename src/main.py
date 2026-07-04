@@ -293,6 +293,15 @@ def _acquire_lock() -> bool:
         os.mkdir(_lock_dir)
         return True
     except FileExistsError:
+        # Check if stale (crash/kill can leave it behind)
+        try:
+            age = time.time() - os.path.getmtime(_lock_dir)
+            if age > 15:
+                os.rmdir(_lock_dir)
+                os.mkdir(_lock_dir)
+                return True
+        except Exception:
+            pass
         return False
 
 
@@ -314,6 +323,12 @@ if __name__ == "__main__":
 
     import atexit
     atexit.register(_release_lock)
+
+    # Clean stale lock directory from the current run if it exists
+    try:
+        os.makedirs(_lock_dir, exist_ok=True)
+    except Exception:
+        pass
 
     app = StandTallApp()
     app.run()
