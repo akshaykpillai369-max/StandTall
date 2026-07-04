@@ -273,8 +273,9 @@ class StandTallApp:
         if self.config.get("first_launch", True):
             self.config["first_launch"] = False
             self._save_config()
-            time.sleep(0.5)
-            self._open_ui()
+
+        time.sleep(0.5)
+        self._open_ui()
 
         while True:
             for path in (_signal_path, _ui_signal_path):
