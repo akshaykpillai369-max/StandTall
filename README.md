@@ -25,7 +25,17 @@ On the very first run, the settings window opens automatically so you can config
 
 ## Installation
 
-### Run from source
+### Windows
+
+**Option 1 — Standalone .exe (recommended, no Python needed)**
+
+1. Download `StandTall Pro.exe` from the release
+2. Double-click to run
+3. On first launch, the settings window appears — configure your preferences
+4. The app will appear in the system tray (near the clock)
+5. Right-click the tray icon to access Settings, Pause/Resume, or Quit
+
+**Option 2 — Run from source**
 
 ```bash
 git clone https://github.com/akshaykpillai369-max/StandTall.git
@@ -34,28 +44,96 @@ pip install -r requirements.txt
 python src/main.py
 ```
 
-### Build standalone package
+### macOS
 
-Standalone packages don't require Python — they bundle everything needed.
+**Option 1 — Build standalone .app (no Python needed for end users)**
 
-**Windows** (builds `dist/StandTall Pro/StandTall Pro.exe`):
-
-```bash
-build.bat
-```
-
-**macOS** (builds `dist/StandTall Pro.app`):
+On a Mac with Python 3 installed:
 
 ```bash
+# Clone the repo
+git clone https://github.com/akshaykpillai369-max/StandTall.git
+cd StandTall
+
+# Install dependencies
+pip3 install -r requirements.txt
+pip3 install pyobjc-framework-Cocoa  # required by pystray on macOS
+
+# Build the .app bundle
 chmod +x build_mac.sh
 ./build_mac.sh
 ```
 
-**Linux** (builds `dist/StandTall Pro/`):
+The standalone app will be at `dist/StandTall Pro.app`. You can:
+- Drag it to your **Applications** folder for permanent access
+- Right-click and select **Open** (macOS may show a security warning for unsigned apps — go to **System Preferences > Security & Privacy** and click **Open Anyway**)
+- On first launch, the settings window appears; after closing it, the app runs in the **menu bar** (top-right of your screen)
+- Click the menu bar icon to access Settings
+
+**Option 2 — Run from source (requires Python)**
 
 ```bash
+git clone https://github.com/akshaykpillai369-max/StandTall.git
+cd StandTall
+pip3 install -r requirements.txt
+pip3 install pyobjc-framework-Cocoa
+python3 src/main.py
+```
+
+### Linux
+
+**Option 1 — Build standalone executable (no Python needed for end users)**
+
+On a Linux machine with Python 3 installed:
+
+```bash
+# Clone the repo
+git clone https://github.com/akshaykpillai369-max/StandTall.git
+cd StandTall
+
+# Install system dependencies
+sudo apt-get install -y python3-tk libnotify-bin  # Debian/Ubuntu
+# or: sudo yum install -y python3-tkinter libnotify  # Fedora/RHEL
+
+# Install Python dependencies
+pip3 install -r requirements.txt
+pip3 install python-xlib  # required by pystray on Linux
+
+# Build the standalone package
 chmod +x build_linux.sh
 ./build_linux.sh
+```
+
+The standalone package will be at `dist/StandTall Pro/`. To run it:
+
+```bash
+./dist/StandTall\ Pro/StandTall\ Pro
+```
+
+You can create a desktop shortcut:
+1. Create `~/.local/share/applications/standtall.desktop`:
+
+```ini
+[Desktop Entry]
+Type=Application
+Name=StandTall Pro
+Exec=/path/to/dist/StandTall Pro/StandTall Pro
+Icon=/path/to/assets/logo.png
+Categories=Utility;
+```
+
+2. Make it executable: `chmod +x ~/.local/share/applications/standtall.desktop`
+
+On first launch, the settings window appears. After closing it, the app runs in the **system tray** (notification area). Click the tray icon to access Settings.
+
+**Option 2 — Run from source (requires Python)**
+
+```bash
+git clone https://github.com/akshaykpillai369-max/StandTall.git
+cd StandTall
+pip3 install -r requirements.txt
+pip3 install python-xlib
+python3 src/main.py
 ```
 
 ## Configuration
