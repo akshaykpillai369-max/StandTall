@@ -149,6 +149,35 @@ Settings are stored in `config.json`:
 | `start_on_boot` | `false` | Launch on system startup |
 | `notifications_enabled` | `true` | Enable/disable desktop notifications |
 
+## Uninstall
+
+### Windows
+1. **Disable auto-start** (if enabled): Open the app Settings and turn off **Start on Windows startup**, or run:
+   ```reg
+   reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "StandTall Pro" /f
+   ```
+2. **Delete the app**: Remove the downloaded `StandTall Pro.exe` file
+3. **Remove config** (optional): Delete `config.json` from the same folder as the exe
+
+### macOS
+1. **Disable auto-start** (if enabled): Remove the LaunchAgent:
+   ```bash
+   rm ~/Library/LaunchAgents/com.standtall.plist
+   ```
+2. **Delete the app**: Move `StandTall Pro.app` from Applications to Trash
+3. **Remove config** (optional): Delete `config.json` from the same folder as the .app
+
+### Linux
+1. **Disable auto-start** (if enabled): Remove the autostart entry:
+   ```bash
+   rm ~/.config/autostart/standtall.desktop
+   ```
+2. **Delete the app**: Remove the build folder:
+   ```bash
+   rm -rf path/to/dist/StandTall\ Pro
+   ```
+3. **Remove config** (optional): Delete `config.json` from the same folder as the executable
+
 ## Tech Stack
 
 - [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter) — modern UI
