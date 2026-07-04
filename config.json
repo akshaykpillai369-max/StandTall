@@ -1,8 +1,9 @@
 {
     "stand_interval_seconds": 3600,
-    "eye_care_interval_seconds": 60,
+    "eye_care_interval_seconds": 1200,
     "eye_care_duration_seconds": 20,
     "theme": "dark",
     "start_on_boot": false,
-    "notifications_enabled": true
+    "notifications_enabled": true,
+    "first_launch": true
 }

@@ -1,150 +1,133 @@
 import os
 import sys
 import json
-import ctypes
 import threading
-import winreg
 import tempfile
+import time
+import platform
 from typing import Optional
 
 import pystray
 from PIL import Image, ImageDraw
 
 from logic import TimerEngine, TimerConfig
-from paths import resource_path, config_path
-from notify import notify, initialize as init_notifier
+from paths import config_path, project_root
+from notify import notify
 
 
 _signal_path = os.path.join(tempfile.gettempdir(), "StandTallPro.show")
-
-# Minimal hidden window for notifications (no tkinter needed at startup)
-_WndProc = ctypes.WINFUNCTYPE(
-    ctypes.c_long, ctypes.c_void_p, ctypes.c_uint,
-    ctypes.c_void_p, ctypes.c_void_p,
-)(lambda hwnd, msg, wparam, lparam: ctypes.windll.user32.DefWindowProcW(hwnd, msg, wparam, lparam))
+_ui_signal_path = os.path.join(tempfile.gettempdir(), "StandTallPro.open_ui")
+_lock_dir = os.path.join(tempfile.gettempdir(), ".standtall-lock")
 
 
 class StandTallApp:
     def __init__(self):
         self.config = self._load_config()
         self.timer_config = TimerConfig(
-            stand_interval_seconds=self.config.get("stand_interval_seconds", 30),
-            eye_care_interval_seconds=self.config.get("eye_care_interval_seconds", 30),
+            stand_interval_seconds=self.config.get("stand_interval_seconds", 3600),
+            eye_care_interval_seconds=self.config.get("eye_care_interval_seconds", 1200),
             eye_care_duration_seconds=self.config.get("eye_care_duration_seconds", 20),
             notifications_enabled=self.config.get("notifications_enabled", True),
         )
         self.engine = TimerEngine(self.timer_config)
-        self.engine.on_stand_reminder = self._notify_stand
-        self.engine.on_eye_care_reminder = self._notify_eye_care
+        self.engine.on_stand_reminder = lambda m: notify("StandTall Pro", m)
+        self.engine.on_eye_care_reminder = lambda m: notify("StandTall Pro \u2014 Eye Care", m)
 
         self._tray_icon: Optional[pystray.Icon] = None
         self._ui_window = None
-        self.root: Optional = None
-        self._mode = "tray"
-        self._notify_hwnd = None
+        self.root = None
 
-    # ── config helpers ──────────────────────────────────────────────
+    # ── config ──────────────────────────────────────────────────────
 
     def _load_config(self) -> dict:
         path = config_path()
+        defaults = {
+            "stand_interval_seconds": 3600,
+            "eye_care_interval_seconds": 1200,
+            "eye_care_duration_seconds": 20,
+            "theme": "dark",
+            "start_on_boot": False,
+            "notifications_enabled": True,
+            "first_launch": True,
+        }
         try:
             with open(path, "r") as f:
-                return json.load(f)
+                cfg = json.load(f)
+                for k, v in defaults.items():
+                    cfg.setdefault(k, v)
+            return cfg
         except (FileNotFoundError, json.JSONDecodeError):
-            result = {
-                "stand_interval_seconds": 30,
-                "eye_care_interval_seconds": 30,
-                "eye_care_duration_seconds": 20,
-                "theme": "dark",
-                "start_on_boot": False,
-                "notifications_enabled": True,
-            }
             try:
                 with open(path, "w") as f:
-                    json.dump(result, f, indent=4)
+                    json.dump(defaults, f, indent=4)
             except Exception:
                 pass
-            return result
+            return dict(defaults)
 
     def _save_config(self):
-        path = config_path()
         try:
-            with open(path, "w") as f:
+            with open(config_path(), "w") as f:
                 json.dump(self.config, f, indent=4)
         except Exception:
             pass
 
-    def _set_startup(self, enabled: bool):
+    def _enable_startup(self, enabled: bool):
+        system = platform.system()
         try:
-            key = winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER,
-                r"Software\Microsoft\Windows\CurrentVersion\Run",
-                0, winreg.KEY_SET_VALUE,
-            )
-            if enabled:
-                exe_path = sys.executable
-                if not getattr(sys, "frozen", False):
-                    exe_path = f'"{sys.executable}" "{os.path.abspath("src/main.py")}"'
-                winreg.SetValueEx(key, "StandTall Pro", 0, winreg.REG_SZ, exe_path)
-            else:
-                try:
-                    winreg.DeleteValue(key, "StandTall Pro")
-                except FileNotFoundError:
-                    pass
-            winreg.CloseKey(key)
+            if system == "Windows":
+                import winreg
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                    r"Software\Microsoft\Windows\CurrentVersion\Run",
+                    0, winreg.KEY_SET_VALUE)
+                if enabled:
+                    winreg.SetValueEx(key, "StandTall Pro", 0, winreg.REG_SZ, sys.executable)
+                else:
+                    try: winreg.DeleteValue(key, "StandTall Pro")
+                    except FileNotFoundError: pass
+                winreg.CloseKey(key)
+            elif system == "Darwin":
+                plist = os.path.expanduser("~/Library/LaunchAgents/com.standtall.plist")
+                if enabled:
+                    content = (
+                        '<?xml version="1.0" encoding="UTF-8"?>\n'
+                        '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
+                        '"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
+                        '<plist version="1.0"><dict>'
+                        "<key>Label</key><string>com.standtall</string>"
+                        "<key>ProgramArguments</key><array>"
+                        f"<string>{sys.executable}</string>"
+                        "</array>"
+                        "<key>RunAtLoad</key><true/>"
+                        "</dict></plist>"
+                    )
+                    with open(plist, "w") as f:
+                        f.write(content)
+                else:
+                    try: os.unlink(plist)
+                    except FileNotFoundError: pass
+            elif system == "Linux":
+                desktop = os.path.expanduser("~/.config/autostart/standtall.desktop")
+                if enabled:
+                    content = (
+                        "[Desktop Entry]\n"
+                        "Type=Application\n"
+                        "Name=StandTall Pro\n"
+                        f"Exec={sys.executable}\n"
+                        "X-GNOME-Autostart-enabled=true\n"
+                    )
+                    os.makedirs(os.path.dirname(desktop), exist_ok=True)
+                    with open(desktop, "w") as f:
+                        f.write(content)
+                else:
+                    try: os.unlink(desktop)
+                    except FileNotFoundError: pass
         except Exception:
             pass
 
-    # ── notifications ──────────────────────────────────────────────
-
-    def _notify_stand(self, message: str):
-        if self.timer_config.notifications_enabled:
-            notify("StandTall Pro", message)
-
-    def _notify_eye_care(self, message: str):
-        if self.timer_config.notifications_enabled:
-            notify("StandTall Pro \u2014 Eye Care", message)
-
-    def _create_notify_hwnd(self):
-        hinstance = ctypes.windll.kernel32.GetModuleHandleW(None)
-        class_name = "StandTallNotifyWnd"
-
-        class WNDCLASSEXW(ctypes.Structure):
-            _fields_ = [
-                ("cbSize", ctypes.c_uint),
-                ("style", ctypes.c_uint),
-                ("lpfnWndProc", ctypes.c_void_p),
-                ("cbClsExtra", ctypes.c_int),
-                ("cbWndExtra", ctypes.c_int),
-                ("hInstance", ctypes.c_void_p),
-                ("hIcon", ctypes.c_void_p),
-                ("hCursor", ctypes.c_void_p),
-                ("hbrBackground", ctypes.c_void_p),
-                ("lpszMenuName", ctypes.c_wchar_p),
-                ("lpszClassName", ctypes.c_wchar_p),
-                ("hIconSm", ctypes.c_void_p),
-            ]
-
-        wc = WNDCLASSEXW()
-        wc.cbSize = ctypes.sizeof(WNDCLASSEXW)
-        wc.lpfnWndProc = ctypes.cast(_WndProc, ctypes.c_void_p)
-        wc.hInstance = hinstance
-        wc.lpszClassName = class_name
-        ctypes.windll.user32.RegisterClassExW(ctypes.byref(wc))
-
-        return ctypes.windll.user32.CreateWindowExW(
-            0, class_name, "", 0, 0, 0, 0, 0, 0, 0, hinstance, 0
-        )
-
-    def _destroy_notify_hwnd(self):
-        if self._notify_hwnd:
-            ctypes.windll.user32.DestroyWindow(self._notify_hwnd)
-            self._notify_hwnd = None
-
-    # ── tray icon ──────────────────────────────────────────────────
+    # ── tray icon ───────────────────────────────────────────────────
 
     def _create_tray_image(self):
-        png_path = resource_path(os.path.join("assets", "logo.png"))
+        png_path = os.path.join(project_root(), "assets", "logo.png")
         if os.path.exists(png_path):
             try:
                 img = Image.open(png_path).convert("RGBA")
@@ -175,34 +158,19 @@ class StandTallApp:
         draw.ellipse([cx2 - 3, cy - 2, cx2 + 3, cy + 2], fill="#FFB300")
         return image
 
-    def _run_tray(self):
-        self._notify_hwnd = self._create_notify_hwnd()
-        init_notifier(self._notify_hwnd)
-        self.engine.start()
+    def _on_tray_settings(self, icon, item):
+        try:
+            with open(_ui_signal_path, "w") as f:
+                f.write("")
+        except Exception:
+            pass
 
-        image = self._create_tray_image()
-        menu = pystray.Menu(
-            pystray.MenuItem("Settings", self._on_show_settings),
-            pystray.MenuItem("Pause / Resume", self._toggle_pause),
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Quit", self._on_quit),
-        )
-        self._tray_icon = pystray.Icon("StandTall Pro", image, "StandTall Pro", menu)
-        self._tray_icon.run()
-
-        self._tray_icon = None
-        self._destroy_notify_hwnd()
-
-    def _on_show_settings(self, icon, item):
-        self._mode = "ui"
-        icon.stop()
-
-    def _on_quit(self, icon, item):
-        self._mode = "quit"
+    def _on_tray_quit(self, icon, item):
         self.engine.stop()
         icon.stop()
+        os._exit(0)
 
-    def _toggle_pause(self, icon, item):
+    def _on_tray_pause(self, icon, item):
         if self.engine.is_paused:
             self.engine.resume()
             icon.title = "StandTall Pro"
@@ -210,7 +178,7 @@ class StandTallApp:
             self.engine.pause()
             icon.title = "StandTall Pro [PAUSED]"
 
-    # ── settings UI (lazy, uses customtkinter) ─────────────────────
+    # ── settings UI (lazy customtkinter) ────────────────────────────
 
     def _open_ui(self):
         if self._ui_window is not None and self._ui_window.winfo_exists():
@@ -219,57 +187,61 @@ class StandTallApp:
             self._ui_window.focus()
             return
 
+        try:
+            os.remove(_ui_signal_path)
+        except Exception:
+            pass
+
         import customtkinter as ctk
 
         self.root = ctk.CTk()
         self.root.withdraw()
 
-        ico_path = resource_path(os.path.join("assets", "icon.ico"))
-        png_path = resource_path(os.path.join("assets", "logo.png"))
-        if os.path.exists(ico_path):
-            try:
-                self.root.iconbitmap(ico_path)
-            except Exception:
-                pass
+        ico_path = os.path.join(project_root(), "assets", "icon.ico")
+        png_path = os.path.join(project_root(), "assets", "logo.png")
         icon_path = ico_path if os.path.exists(ico_path) else png_path
         if os.path.exists(icon_path):
             try:
                 from PIL import ImageTk
-                icon_img = Image.open(icon_path).convert("RGBA")
-                self.root.iconphoto(True, ImageTk.PhotoImage(icon_img))
+                img = Image.open(icon_path).convert("RGBA")
+                self.root.iconphoto(True, ImageTk.PhotoImage(img))
             except Exception:
                 pass
 
-        init_notifier(self.root.winfo_id())
-
         from ui import SettingsWindow
         self._ui_window = SettingsWindow(self)
-        self._ui_window.protocol("WM_DELETE_WINDOW", self._on_hide_ui)
+        self._ui_window.protocol("WM_DELETE_WINDOW", self._on_close_ui)
 
-        def _poll_signal():
-            if os.path.exists(_signal_path):
-                try:
-                    os.remove(_signal_path)
-                    self.root.after(0, self._open_ui)
-                except Exception:
-                    pass
-            self.root.after(500, _poll_signal)
-
-        self.root.after(500, _poll_signal)
+        self.root.after(500, self._poll_signals)
         self.root.mainloop()
 
         self.root.destroy()
         self.root = None
         self._ui_window = None
 
-    def _on_hide_ui(self):
-        self._mode = "tray"
-        if self._ui_window is not None and self._ui_window.winfo_exists():
+    def _on_close_ui(self):
+        try:
+            os.remove(_ui_signal_path)
+        except Exception:
+            pass
+        if self._ui_window is not None:
             self._ui_window.withdraw()
         if self.root:
             self.root.quit()
 
-    # ── public API ─────────────────────────────────────────────────
+    def _poll_signals(self):
+        for path in (_signal_path, _ui_signal_path):
+            if os.path.exists(path):
+                try:
+                    os.remove(path)
+                except Exception:
+                    pass
+                self._open_ui()
+                return
+        if self.root:
+            self.root.after(500, self._poll_signals)
+
+    # ── public API ──────────────────────────────────────────────────
 
     def update_config(self, key: str, value):
         self.config[key] = value
@@ -283,35 +255,64 @@ class StandTallApp:
         elif key == "notifications_enabled":
             self.timer_config.notifications_enabled = value
         elif key == "start_on_boot":
-            self._set_startup(value)
+            self._enable_startup(value)
 
     def run(self):
+        self.engine.start()
+
+        image = self._create_tray_image()
+        menu = pystray.Menu(
+            pystray.MenuItem("Settings", self._on_tray_settings),
+            pystray.MenuItem("Pause / Resume", self._on_tray_pause),
+            pystray.Menu.SEPARATOR,
+            pystray.MenuItem("Quit", self._on_tray_quit),
+        )
+        self._tray_icon = pystray.Icon("StandTall Pro", image, "StandTall Pro", menu)
+        threading.Thread(target=self._tray_icon.run, daemon=True).start()
+
+        if self.config.get("first_launch", True):
+            self.config["first_launch"] = False
+            self._save_config()
+            time.sleep(0.5)
+            self._open_ui()
+
         while True:
-            self._run_tray()
-            if self._mode == "quit":
-                break
-            elif self._mode == "ui":
-                self._open_ui()
-                if self._mode == "quit":
-                    break
-            self._mode = "tray"
+            for path in (_signal_path, _ui_signal_path):
+                if os.path.exists(path):
+                    try:
+                        os.remove(path)
+                    except Exception:
+                        pass
+                    self._open_ui()
+            time.sleep(0.5)
+
+
+def _acquire_lock() -> bool:
+    try:
+        os.mkdir(_lock_dir)
+        return True
+    except FileExistsError:
+        return False
+
+
+def _release_lock():
+    try:
+        os.rmdir(_lock_dir)
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":
-    _EVENT_NAME = "Global\\StandTallPro_SingleInstance_Event"
-    _create_event = ctypes.windll.kernel32.CreateEventW
-    _create_event.argtypes = [ctypes.c_void_p, ctypes.c_bool, ctypes.c_bool, ctypes.c_wchar_p]
-    _create_event.restype = ctypes.c_void_p
-    _get_last_error = ctypes.windll.kernel32.GetLastError
-
-    _h_event = _create_event(None, True, False, _EVENT_NAME)
-    if _get_last_error() == 183:
+    if not _acquire_lock():
         try:
             with open(_signal_path, "w") as f:
                 f.write("show")
         except Exception:
             pass
         sys.exit(0)
+
+    import atexit
+    atexit.register(_release_lock)
 
     app = StandTallApp()
     app.run()
