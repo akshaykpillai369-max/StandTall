@@ -17,7 +17,7 @@ from notify import notify
 
 _signal_path = os.path.join(tempfile.gettempdir(), "StandTallPro.show")
 _ui_signal_path = os.path.join(tempfile.gettempdir(), "StandTallPro.open_ui")
-_lock_dir = os.path.join(tempfile.gettempdir(), ".standtall-lock")
+_lock_file = os.path.join(tempfile.gettempdir(), ".standtall-lock")
 
 
 class StandTallApp:
@@ -288,26 +288,43 @@ class StandTallApp:
             time.sleep(0.5)
 
 
+def _is_process_alive(pid: int) -> bool:
+    try:
+        if os.name == "nt":
+            import ctypes
+            handle = ctypes.windll.kernel32.OpenProcess(0x400, False, pid)
+            if handle:
+                ctypes.windll.kernel32.CloseHandle(handle)
+                return True
+            return False
+        else:
+            os.kill(pid, 0)
+            return True
+    except (OSError, ValueError):
+        return False
+
+
 def _acquire_lock() -> bool:
     try:
-        os.mkdir(_lock_dir)
+        if os.path.exists(_lock_file):
+            with open(_lock_file, "r") as f:
+                pid = f.read().strip()
+            if pid and _is_process_alive(int(pid)):
+                return False
+        with open(_lock_file, "w") as f:
+            f.write(str(os.getpid()))
         return True
-    except FileExistsError:
-        # Check if stale (crash/kill can leave it behind)
-        try:
-            age = time.time() - os.path.getmtime(_lock_dir)
-            if age > 15:
-                os.rmdir(_lock_dir)
-                os.mkdir(_lock_dir)
-                return True
-        except Exception:
-            pass
+    except Exception:
         return False
 
 
 def _release_lock():
     try:
-        os.rmdir(_lock_dir)
+        if os.path.exists(_lock_file):
+            with open(_lock_file, "r") as f:
+                pid = f.read().strip()
+            if pid == str(os.getpid()):
+                os.remove(_lock_file)
     except Exception:
         pass
 
@@ -323,12 +340,6 @@ if __name__ == "__main__":
 
     import atexit
     atexit.register(_release_lock)
-
-    # Clean stale lock directory from the current run if it exists
-    try:
-        os.makedirs(_lock_dir, exist_ok=True)
-    except Exception:
-        pass
 
     app = StandTallApp()
     app.run()
