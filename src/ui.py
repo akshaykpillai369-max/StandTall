@@ -27,237 +27,211 @@ class SettingsWindow(ctk.CTkToplevel):
         self.after(100, self._init_ui)
 
     def _init_ui(self):
-        self._load_theme_colors()
-        self._build_ui()
-        self._update_streak()
+        self._load_theme()
+        self._build()
+        self._poll()
 
-    def _load_theme_colors(self):
+    def _load_theme(self):
         theme_name = self.app.config.get("theme", "dark")
         theme_file = f"{theme_name.lower().replace(' ', '_')}.json"
         path = os.path.join(THEMES_DIR, theme_file)
-
         if not os.path.exists(path):
             path = os.path.join(THEMES_DIR, "dark.json")
-
         try:
             with open(path, "r") as f:
                 self.theme = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
-            fallback = os.path.join(THEMES_DIR, "dark.json")
-            with open(fallback, "r") as f:
+            with open(os.path.join(THEMES_DIR, "dark.json"), "r") as f:
                 self.theme = json.load(f)
-
-        ctk.set_appearance_mode("dark" if theme_name.lower() == "dark" else "light")
+        is_dark = theme_name.lower() == "dark"
+        ctk.set_appearance_mode("dark" if is_dark else "light")
         self.configure(fg_color=self.theme["colors"]["bg"])
 
-    def _build_ui(self):
-        self.title("StandTall Pro \u2014 Settings")
+    def _build(self):
+        self.title("StandTall Pro")
         self.resizable(False, False)
+        c = self.theme["colors"]
 
-        colors = self.theme["colors"]
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
 
-        main = ctk.CTkFrame(self, fg_color=colors["bg"], corner_radius=0)
-        main.pack(fill="both", expand=True, padx=20, pady=20)
+        body = ctk.CTkFrame(self, fg_color=c["bg"], corner_radius=0)
+        body.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        body.grid_columnconfigure(0, weight=1)
+
+        row = 0
+
+        # Header
+        ctk.CTkLabel(
+            body, text="StandTall Pro",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color=c["fg"],
+        ).grid(row=row, column=0, pady=(0, 4), sticky="w")
+        row += 1
 
         ctk.CTkLabel(
-            main,
-            text="StandTall Pro",
-            font=ctk.CTkFont(size=22, weight="bold"),
-            text_color=colors["fg"],
-        ).pack(pady=(0, 20))
+            body, text="Posture & eye care reminders",
+            font=ctk.CTkFont(size=12),
+            text_color=c["text_secondary"],
+        ).grid(row=row, column=0, pady=(0, 18), sticky="w")
+        row += 1
 
-        # Dashboard card
-        streak_card = self._card(main)
-        ctk.CTkLabel(
-            streak_card, text="Dashboard",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            text_color=colors["fg"],
-        ).pack(anchor="w", padx=16, pady=(12, 4))
+        # Status bar
+        status = ctk.CTkFrame(body, fg_color=c["card_bg"], corner_radius=10)
+        status.grid(row=row, column=0, sticky="ew", pady=(0, 18))
+        status.grid_columnconfigure((0, 1, 2), weight=1)
+        row += 1
 
-        self._streak_label = ctk.CTkLabel(
-            streak_card, text="Current Streak: 0.0 hours",
-            font=ctk.CTkFont(size=13), text_color=colors["text_secondary"],
+        status_font = ctk.CTkFont(size=12)
+        self._next_stand_lbl = ctk.CTkLabel(
+            status, text="\u25b6 Stand in \u2014",
+            font=status_font, text_color=c["accent_stand"],
         )
-        self._streak_label.pack(anchor="w", padx=16, pady=(0, 4))
+        self._next_stand_lbl.grid(row=0, column=0, padx=12, pady=10, sticky="w")
 
-        info_frame = ctk.CTkFrame(streak_card, fg_color="transparent")
-        info_frame.pack(fill="x", padx=16, pady=(0, 12))
-
-        self._next_stand_label = ctk.CTkLabel(
-            info_frame, text="Next stand: \u2014",
-            font=ctk.CTkFont(size=12), text_color=colors["accent_stand"],
+        self._next_eye_lbl = ctk.CTkLabel(
+            status, text="\u25b6 Eye break in \u2014",
+            font=status_font, text_color=c["accent_eye"],
         )
-        self._next_stand_label.pack(side="left", padx=(0, 20))
+        self._next_eye_lbl.grid(row=0, column=1, padx=4, pady=10, sticky="w")
 
-        self._next_eye_label = ctk.CTkLabel(
-            info_frame, text="Next eye break: \u2014",
-            font=ctk.CTkFont(size=12), text_color=colors["accent_eye"],
+        self._streak_lbl = ctk.CTkLabel(
+            status, text="Streak 0.0h",
+            font=status_font, text_color=c["text_secondary"],
         )
-        self._next_eye_label.pack(side="left")
+        self._streak_lbl.grid(row=0, column=2, padx=12, pady=10, sticky="e")
 
-        # Stand slider card
-        stand_card = self._card(main)
+        # Stand reminder row
+        self._build_slider(body, row, "\u23f1 Stand every", "stand_interval_seconds",
+                           c["accent_stand"], c, 1, 60, 60)
+        row += 1
+
+        # Eye care row
+        self._build_slider(body, row, "\u231a Eye break every", "eye_care_interval_seconds",
+                           c["accent_eye"], c, 1, 30, 30)
+        row += 1
+
+        # Theme
+        theme_frame = ctk.CTkFrame(body, fg_color=c["card_bg"], corner_radius=10)
+        theme_frame.grid(row=row, column=0, sticky="ew", pady=(0, 10))
+        theme_frame.grid_columnconfigure(1, weight=1)
+        row += 1
+
         ctk.CTkLabel(
-            stand_card, text="Posture Reminder",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            text_color=colors["fg"],
-        ).pack(anchor="w", padx=16, pady=(12, 4))
-        ctk.CTkLabel(
-            stand_card, text="Remind me to stand every:",
-            font=ctk.CTkFont(size=12), text_color=colors["text_secondary"],
-        ).pack(anchor="w", padx=16, pady=(0, 4))
+            theme_frame, text="\ud83c\udfa8 Theme",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color=c["fg"],
+        ).grid(row=0, column=0, padx=(14, 8), pady=12, sticky="w")
 
-        stand_slider_frame = ctk.CTkFrame(stand_card, fg_color="transparent")
-        stand_slider_frame.pack(fill="x", padx=16, pady=(0, 12))
-
-        self._stand_slider_var = ctk.IntVar(value=min(self.engine.config.stand_interval_seconds // 60, 60))
-        ctk.CTkSlider(
-            stand_slider_frame, from_=1, to=60, number_of_steps=59,
-            variable=self._stand_slider_var, command=self._on_stand_slider,
-            fg_color=colors["slider_bg"], progress_color=colors["slider_progress"],
-            button_color=colors["accent_stand"], button_hover_color=colors["accent_stand"],
-        ).pack(side="left", fill="x", expand=True, padx=(0, 12))
-
-        self._stand_value_label = ctk.CTkLabel(
-            stand_slider_frame, text=f"{self._stand_slider_var.get()} min",
-            font=ctk.CTkFont(size=12), text_color=colors["accent_stand"], width=50,
-        )
-        self._stand_value_label.pack(side="right")
-
-        # Eye slider card
-        eye_card = self._card(main)
-        ctk.CTkLabel(
-            eye_card, text="Eye Care (20-20-20 Rule)",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            text_color=colors["fg"],
-        ).pack(anchor="w", padx=16, pady=(12, 4))
-        ctk.CTkLabel(
-            eye_card, text="Remind me every:",
-            font=ctk.CTkFont(size=12), text_color=colors["text_secondary"],
-        ).pack(anchor="w", padx=16, pady=(0, 4))
-
-        eye_slider_frame = ctk.CTkFrame(eye_card, fg_color="transparent")
-        eye_slider_frame.pack(fill="x", padx=16, pady=(0, 12))
-
-        self._eye_slider_var = ctk.IntVar(value=min(self.engine.config.eye_care_interval_seconds // 60, 30))
-        ctk.CTkSlider(
-            eye_slider_frame, from_=1, to=30, number_of_steps=29,
-            variable=self._eye_slider_var, command=self._on_eye_slider,
-            fg_color=colors["slider_bg"], progress_color=colors["slider_progress"],
-            button_color=colors["accent_eye"], button_hover_color=colors["accent_eye"],
-        ).pack(side="left", fill="x", expand=True, padx=(0, 12))
-
-        self._eye_value_label = ctk.CTkLabel(
-            eye_slider_frame, text=f"{self._eye_slider_var.get()} min",
-            font=ctk.CTkFont(size=12), text_color=colors["accent_eye"], width=50,
-        )
-        self._eye_value_label.pack(side="right")
-
-        # Theme card
-        theme_card = self._card(main)
-        ctk.CTkLabel(
-            theme_card, text="Theme",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            text_color=colors["fg"],
-        ).pack(anchor="w", padx=16, pady=(12, 4))
-
-        self._theme_var = ctk.StringVar(value=self._get_current_theme_display())
+        self._theme_var = ctk.StringVar(value=self._current_theme_name())
         ctk.CTkOptionMenu(
-            theme_card,
-            values=["Light", "Dark", "High Contrast"],
+            theme_frame,
+            values=["Dark", "Light", "High Contrast"],
             variable=self._theme_var,
-            command=self._on_theme_change,
-            fg_color=colors["dropdown_bg"],
-            button_color=colors["button_bg"],
-            button_hover_color=colors["button_hover"],
-            text_color=colors["dropdown_fg"],
-            dropdown_fg_color=colors["dropdown_bg"],
-            dropdown_text_color=colors["dropdown_fg"],
-            dropdown_hover_color=colors["button_bg"],
-        ).pack(anchor="w", padx=16, pady=(0, 12))
+            command=self._on_theme,
+            fg_color=c["dropdown_bg"],
+            button_color=c["button_bg"],
+            button_hover_color=c["button_hover"],
+            text_color=c["dropdown_fg"],
+            dropdown_fg_color=c["dropdown_bg"],
+            dropdown_text_color=c["dropdown_fg"],
+            dropdown_hover_color=c["button_bg"],
+            font=ctk.CTkFont(size=12),
+        ).grid(row=0, column=1, padx=(0, 14), pady=8, sticky="ew")
 
-        # Startup card
-        startup_card = self._card(main)
-        ctk.CTkLabel(
-            startup_card, text="Startup",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            text_color=colors["fg"],
-        ).pack(anchor="w", padx=16, pady=(12, 4))
+        # Auto-start
+        auto_frame = ctk.CTkFrame(body, fg_color=c["card_bg"], corner_radius=10)
+        auto_frame.grid(row=row, column=0, sticky="ew", pady=(0, 10))
+        row += 1
 
         self._startup_var = ctk.BooleanVar(value=self.app.config.get("start_on_boot", False))
         ctk.CTkSwitch(
-            startup_card,
-            text="Start StandTall Pro on Windows startup",
+            auto_frame,
+            text="Launch at startup",
             variable=self._startup_var,
-            command=self._on_startup_toggle,
-            font=ctk.CTkFont(size=12),
-            text_color=colors["text_secondary"],
-            progress_color=colors["accent_stand"],
-            button_color=colors["button_bg"],
-            button_hover_color=colors["button_hover"],
-        ).pack(anchor="w", padx=16, pady=(0, 12))
+            command=self._on_startup,
+            font=ctk.CTkFont(size=13),
+            text_color=c["fg"],
+            progress_color=c["accent_stand"],
+        ).grid(row=0, column=0, padx=14, pady=12, sticky="w")
 
+        # Size
         self.update_idletasks()
-        w = 420
+        w = 400
         h = self.winfo_reqheight()
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
         self.geometry(f"{w}x{h}+{(sw - w) // 2}+{(sh - h) // 2}")
 
-    def _card(self, parent):
-        c = ctk.CTkFrame(parent, fg_color=self.theme["colors"]["card_bg"], corner_radius=12)
-        c.pack(fill="x", pady=(0, 16))
-        return c
+    def _build_slider(self, parent, row, label, key, accent, c, from_, to, steps):
+        frame = ctk.CTkFrame(parent, fg_color=c["card_bg"], corner_radius=10)
+        frame.grid(row=row, column=0, sticky="ew", pady=(0, 10))
+        frame.grid_columnconfigure(1, weight=1)
 
-    def _get_current_theme_display(self):
-        mapping = {"light": "Light", "dark": "Dark", "high_contrast": "High Contrast"}
-        return mapping.get(self.app.config.get("theme", "dark"), "Dark")
+        ctk.CTkLabel(
+            frame, text=label,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color=c["fg"],
+        ).grid(row=0, column=0, padx=(14, 8), pady=(10, 4), sticky="w")
 
-    def _on_stand_slider(self, value):
+        current_val = min(
+            getattr(self.engine.config, key) // 60, to
+        )
+        var = ctk.IntVar(value=current_val)
+        value_label = ctk.CTkLabel(
+            frame, text=f"{current_val} min",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=accent,
+        )
+        value_label.grid(row=0, column=1, padx=(0, 14), pady=(10, 4), sticky="e")
+
+        slider = ctk.CTkSlider(
+            frame, from_=from_, to=to, number_of_steps=steps - 1,
+            variable=var,
+            command=lambda v, k=key, vl=value_label, a=accent: self._on_slider(v, k, vl, a),
+            fg_color=c["slider_bg"],
+            progress_color=accent,
+            button_color=accent,
+            button_hover_color=accent,
+        )
+        slider.grid(row=1, column=0, columnspan=2, padx=14, pady=(0, 10), sticky="ew")
+
+    def _on_slider(self, value, key, label, accent):
         val = int(value)
-        self._stand_value_label.configure(text=f"{val} min")
-        self.app.update_config("stand_interval_seconds", val * 60)
+        label.configure(text=f"{val} min")
+        self.app.update_config(key, val * 60)
 
-    def _on_eye_slider(self, value):
-        val = int(value)
-        self._eye_value_label.configure(text=f"{val} min")
-        self.app.update_config("eye_care_interval_seconds", val * 60)
+    def _on_theme(self, choice):
+        mapping = {"Dark": "dark", "Light": "light", "High Contrast": "high_contrast"}
+        self.app.update_config("theme", mapping.get(choice, "dark"))
+        for w in self.winfo_children():
+            w.destroy()
+        self._init_ui()
 
-    def _on_theme_change(self, choice: str):
-        mapping = {"Light": "light", "Dark": "dark", "High Contrast": "high_contrast"}
-        key = mapping.get(choice, "dark")
-        self.app.update_config("theme", key)
-        self._rebuild_ui()
-
-    def _on_startup_toggle(self):
+    def _on_startup(self):
         self.app.update_config("start_on_boot", self._startup_var.get())
 
-    def _rebuild_ui(self):
-        self._load_theme_colors()
-        for widget in self.winfo_children():
-            widget.destroy()
-        self._build_ui()
+    def _current_theme_name(self):
+        m = {"light": "Light", "dark": "Dark", "high_contrast": "High Contrast"}
+        return m.get(self.app.config.get("theme", "dark"), "Dark")
 
-    def _update_streak(self):
+    def _poll(self):
         if not self.winfo_exists():
             return
-
-        colors = self.theme["colors"]
-        streak = self.engine.get_streak_hours()
-        self._streak_label.configure(
-            text=f"Current Streak: {streak:.1f} hours since last break",
-            text_color=colors["text_secondary"],
-        )
-
+        c = self.theme["colors"]
         ns = self.engine.get_next_stand_seconds()
         ne = self.engine.get_next_eye_care_seconds()
-        self._next_stand_label.configure(
-            text=f"Next stand: {max(0, int(ns // 60))} min",
-            text_color=colors["accent_stand"],
+        streak = self.engine.get_streak_hours()
+        self._next_stand_lbl.configure(
+            text=f"\u25b6 Stand in {max(0, int(ns // 60))}m",
+            text_color=c["accent_stand"],
         )
-        self._next_eye_label.configure(
-            text=f"Next eye break: {max(0, int(ne // 60))} min",
-            text_color=colors["accent_eye"],
+        self._next_eye_lbl.configure(
+            text=f"\u25b6 Eye break in {max(0, int(ne // 60))}m",
+            text_color=c["accent_eye"],
         )
-
-        self.after(1000, self._update_streak)
+        self._streak_lbl.configure(
+            text=f"Streak {streak:.1f}h",
+            text_color=c["text_secondary"],
+        )
+        self.after(2000, self._poll)
