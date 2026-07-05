@@ -6,8 +6,8 @@ A cross-platform desktop app that reminds you to stand up and rest your eyes, fe
 
 StandTall Pro is a health-focused utility designed for people who spend long hours at their desk. Prolonged sitting and screen staring can lead to back pain, poor posture, and digital eye strain. This app runs quietly in your system tray and sends timely reminders to stand up, stretch, and give your eyes a break using the 20-20-20 rule, helping you build healthier work habits without disrupting your flow.
 
-![StandTall Pro Screenshot] (<img width="497" height="757" alt="Screenshot 2026-07-05 120956" src="https://github.com/user-attachments/assets/594b50fb-8810-4742-b89f-6d822e919713" />
-)
+<img width="497" height="757" alt="Screenshot 2026-07-05 120956" src="https://github.com/user-attachments/assets/594b50fb-8810-4742-b89f-6d822e919713" />
+
 
 - **Posture Reminders** — configurable intervals (1-60 min) to remind you to stand up
 - **Eye Care (20-20-20 Rule)** — configurable intervals (1-30 min) to remind you to look away from the screen
