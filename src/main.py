@@ -306,6 +306,8 @@ def _is_process_alive(pid: int) -> bool:
 
 def _acquire_lock() -> bool:
     try:
+        if os.path.isdir(_lock_file):
+            os.rmdir(_lock_file)
         if os.path.exists(_lock_file):
             with open(_lock_file, "r") as f:
                 pid = f.read().strip()
