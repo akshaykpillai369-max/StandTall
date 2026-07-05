@@ -171,6 +171,18 @@ class SettingsWindow(ctk.CTkToplevel):
             progress_color=c["accent_stand"],
         ).grid(row=0, column=0, padx=14, pady=12, sticky="w")
 
+        # Statistics button
+        ctk.CTkButton(
+            body, text="\U0001f4ca View Statistics",
+            command=self._open_stats,
+            fg_color=c["card_bg"],
+            hover_color=c["button_bg"],
+            text_color=c["fg"],
+            font=ctk.CTkFont(size=13),
+            corner_radius=10,
+        ).grid(row=row, column=0, sticky="ew", pady=(0, 10))
+        row += 1
+
         # Size
         self.update_idletasks()
         w = 400
@@ -224,6 +236,9 @@ class SettingsWindow(ctk.CTkToplevel):
             w.destroy()
         self._init_ui()
 
+    def _open_stats(self):
+        StatsPopup(self)
+
     def _on_nudge(self):
         self.app.update_config("nudge_enabled", self._nudge_var.get())
 
@@ -254,3 +269,102 @@ class SettingsWindow(ctk.CTkToplevel):
             text_color=c["text_secondary"],
         )
         self.after(2000, self._poll)
+
+
+class StatsPopup(ctk.CTkToplevel):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("Statistics")
+        self.resizable(False, False)
+        self.transient(parent)
+        self._parent = parent
+        self.after(100, self._build)
+
+    def _build(self):
+        from stats import get_today, get_last_7_days, get_all_time_totals
+        today = get_today()
+        week = get_last_7_days()
+        totals = get_all_time_totals()
+        c = self._parent.theme["colors"]
+
+        self.configure(fg_color=c["bg"])
+        self.grid_columnconfigure(0, weight=1)
+
+        body = ctk.CTkFrame(self, fg_color=c["bg"], corner_radius=0)
+        body.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        body.grid_columnconfigure(0, weight=1)
+
+        row = 0
+        ctk.CTkLabel(
+            body, text="\U0001f4ca Your Statistics",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=c["fg"],
+        ).grid(row=row, column=0, pady=(0, 16), sticky="w")
+        row += 1
+
+        row_ref = [row]
+        def card(text, value, accent):
+            f = ctk.CTkFrame(body, fg_color=c["card_bg"], corner_radius=10)
+            f.grid(row=row_ref[0], column=0, sticky="ew", pady=(0, 8))
+            ctk.CTkLabel(
+                f, text=text,
+                font=ctk.CTkFont(size=13),
+                text_color=c["text_secondary"],
+            ).grid(row=0, column=0, padx=14, pady=(10, 2), sticky="w")
+            ctk.CTkLabel(
+                f, text=str(value),
+                font=ctk.CTkFont(size=24, weight="bold"),
+                text_color=accent,
+            ).grid(row=1, column=0, padx=14, pady=(0, 10), sticky="w")
+            row_ref[0] += 1
+
+        card("Today \u2014 Stands", today.get("stands", 0), c["accent_stand"])
+        card("Today \u2014 Eye Breaks", today.get("eye_breaks", 0), c["accent_eye"])
+        card("All Time \u2014 Stands", totals.get("stands", 0), c["accent_stand"])
+        card("All Time \u2014 Eye Breaks", totals.get("eye_breaks", 0), c["accent_eye"])
+
+        ctk.CTkLabel(
+            body, text="Last 7 Days",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=c["fg"],
+        ).grid(row=row_ref[0], column=0, pady=(8, 8), sticky="w")
+        row_ref[0] += 1
+
+        chart_frame = ctk.CTkFrame(body, fg_color=c["card_bg"], corner_radius=10)
+        chart_frame.grid(row=row_ref[0], column=0, sticky="ew", pady=(0, 10))
+        chart_frame.grid_columnconfigure(0, weight=1)
+        row_ref[0] += 1
+
+        max_val = max((d.get("stands", 0) + d.get("eye_breaks", 0) for d in week), default=1)
+        max_val = max(max_val, 1)
+        for day_data in week:
+            d_row = ctk.CTkFrame(chart_frame, fg_color="transparent")
+            d_row.grid(sticky="ew", pady=2, padx=14)
+            d_row.grid_columnconfigure(1, weight=1)
+            short = day_data["date"][5:]  # MM-DD
+            ctk.CTkLabel(
+                d_row, text=short,
+                font=ctk.CTkFont(size=11),
+                text_color=c["text_secondary"],
+                width=40,
+            ).grid(row=0, column=0, padx=(0, 6))
+            bar_container = ctk.CTkFrame(d_row, fg_color=c["bg"], corner_radius=4, height=18)
+            bar_container.grid(row=0, column=1, sticky="ew")
+            bar_container.grid_columnconfigure(0, weight=1)
+            total = day_data.get("stands", 0) + day_data.get("eye_breaks", 0)
+            frac = total / max_val
+            bar = ctk.CTkFrame(bar_container, fg_color=c["accent_stand"], corner_radius=4, height=14)
+            bar.place(relx=0, rely=0.5, anchor="w", relwidth=frac, relheight=0.8)
+            ctk.CTkLabel(
+                d_row, text=str(total),
+                font=ctk.CTkFont(size=11, weight="bold"),
+                text_color=c["fg"],
+                width=24,
+            ).grid(row=0, column=2, padx=(6, 0))
+
+        self.update_idletasks()
+        w = 380
+        h = self.winfo_reqheight()
+        sw = self.winfo_screenwidth()
+        sh = self.winfo_screenheight()
+        self.geometry(f"{w}x{h}+{(sw - w) // 2}+{(sh - h) // 2}")

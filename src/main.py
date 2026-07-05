@@ -31,7 +31,7 @@ class StandTallApp:
             nudge_enabled=self.config.get("nudge_enabled", False),
         )
         self.engine = TimerEngine(self.timer_config)
-        self.engine.on_stand_reminder = lambda m: notify("StandTall Pro", m)
+        self.engine.on_stand_reminder = self._on_stand
         self.engine.on_eye_care_reminder = self._on_eye_care
 
         self._tray_icon: Optional[pystray.Icon] = None
@@ -243,10 +243,17 @@ class StandTallApp:
         if self.root:
             self.root.after(500, self._poll_signals)
 
-    # ── eye care callback ────────────────────────────────────────────
+    # ── reminder callbacks ────────────────────────────────────────────
+
+    def _on_stand(self, message: str):
+        notify("StandTall Pro", message)
+        from stats import record_stand
+        record_stand()
 
     def _on_eye_care(self, message: str):
         notify("StandTall Pro \u2014 Eye Care", message)
+        from stats import record_eye_break
+        record_eye_break()
         if self.config.get("nudge_enabled", False):
             from nudge import show_break_nudge
             show_break_nudge(message, self.timer_config.eye_care_duration_seconds)
