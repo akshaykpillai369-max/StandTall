@@ -1,21 +1,24 @@
 # StandTall Pro
 
-A cross-platform desktop app that reminds you to stand up and rest your eyes, featuring a system tray icon and customizable settings.
+A cross-platform desktop app that reminds you to stand up and rest your eyes, featuring a system tray icon, break nudges, statistics, and customizable settings.
 
 ## About
 
 StandTall Pro is a health-focused utility designed for people who spend long hours at their desk. Prolonged sitting and screen staring can lead to back pain, poor posture, and digital eye strain. This app runs quietly in your system tray and sends timely reminders to stand up, stretch, and give your eyes a break using the 20-20-20 rule, helping you build healthier work habits without disrupting your flow.
 
-<img width="497" height="757" alt="Screenshot 2026-07-05 120956" src="https://github.com/user-attachments/assets/594b50fb-8810-4742-b89f-6d822e919713" />
+<img width="497" height="757" alt="Screenshot" src="https://github.com/user-attachments/assets/594b50fb-8810-4742-b89f-6d822e919713" />
 
 
 - **Posture Reminders** — configurable intervals (1-60 min) to remind you to stand up
 - **Eye Care (20-20-20 Rule)** — configurable intervals (1-30 min) to remind you to look away from the screen
-- **System Tray** — runs in the background with quick access to Settings, Pause/Resume, and Quit
+- **Break Nudges** — optional full-screen overlay during eye breaks with countdown and Dismiss button (toggle in Settings)
+- **Statistics Dashboard** — tracks stands and eye breaks per day, with today/all-time totals and a 7-day bar chart
+- **System Tray** — runs in the background; hover the tray icon to see remaining time until next break
 - **Custom Themes** — Dark, Light, and High Contrast
 - **Auto-start** — option to launch on system startup
 - **Desktop Notifications** — native notifications on Windows, macOS, and Linux
 - **Streak Tracking** — shows time since your last break
+- **Auto-Update Check** — queries GitHub releases and notifies you when a newer version is available
 - **Cross-platform** — works on Windows, macOS, and Linux
 
 ## First Launch
@@ -147,16 +150,31 @@ Settings are stored in `config.json`:
 | `theme` | `"dark"` | UI theme (`dark`, `light`, `high_contrast`) |
 | `start_on_boot` | `false` | Launch on system startup |
 | `notifications_enabled` | `true` | Enable/disable desktop notifications |
+| `nudge_enabled` | `false` | Show full-screen overlay during eye breaks |
+
+Config location by platform:
+
+| Platform | Path |
+|----------|------|
+| Windows (standalone .exe) | `%APPDATA%\StandTall Pro\config.json` |
+| macOS (standalone .app) | `~/Library/Application Support/StandTall Pro/config.json` |
+| Linux (standalone) | `~/.config/StandTall Pro/config.json` |
+| Running from source | `standtall/config.json` (in the repo) |
+
+Statistics are stored in `stats.json` at the same location as `config.json`.
 
 ## Uninstall
 
 ### Windows
-1. **Disable auto-start** (if enabled): Open the app Settings and turn off **Start on Windows startup**, or run:
+1. **Disable auto-start** (if enabled): Open the app Settings and turn off **Launch at startup**, or run:
    ```reg
    reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "StandTall Pro" /f
    ```
 2. **Delete the app**: Remove the downloaded `StandTall Pro.exe` file
-3. **Remove config** (optional): Delete `config.json` from the same folder as the exe
+3. **Remove config & stats** (optional):
+   ```powershell
+   Remove-Item "$env:APPDATA\StandTall Pro" -Recurse -Force
+   ```
 
 ### macOS
 1. **Disable auto-start** (if enabled): Remove the LaunchAgent:
@@ -164,7 +182,10 @@ Settings are stored in `config.json`:
    rm ~/Library/LaunchAgents/com.standtall.plist
    ```
 2. **Delete the app**: Move `StandTall Pro.app` from Applications to Trash
-3. **Remove config** (optional): Delete `config.json` from the same folder as the .app
+3. **Remove config & stats** (optional):
+   ```bash
+   rm -rf ~/Library/Application\ Support/StandTall\ Pro
+   ```
 
 ### Linux
 1. **Disable auto-start** (if enabled): Remove the autostart entry:
@@ -175,7 +196,10 @@ Settings are stored in `config.json`:
    ```bash
    rm -rf path/to/dist/StandTall\ Pro
    ```
-3. **Remove config** (optional): Delete `config.json` from the same folder as the executable
+3. **Remove config & stats** (optional):
+   ```bash
+   rm -rf ~/.config/StandTall\ Pro
+   ```
 
 ## Tech Stack
 
