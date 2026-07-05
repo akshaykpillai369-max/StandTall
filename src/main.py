@@ -288,23 +288,68 @@ class StandTallApp:
             time.sleep(0.5)
 
 
-def _is_process_alive(pid: int) -> bool:
-    try:
-        if os.name == "nt":
-            import ctypes
-            handle = ctypes.windll.kernel32.OpenProcess(0x400, False, pid)
-            if handle:
-                ctypes.windll.kernel32.CloseHandle(handle)
-                return True
-            return False
-        else:
-            os.kill(pid, 0)
-            return True
-    except (OSError, ValueError):
-        return False
+_lock_mutex = None  # holds mutex handle on Windows
 
 
 def _acquire_lock() -> bool:
+    global _lock_mutex
+    if os.name == "nt":
+        return _win32_acquire_mutex()
+    return _posix_acquire_lock()
+
+
+def _release_lock():
+    global _lock_mutex
+    if os.name == "nt":
+        _win32_release_mutex()
+    else:
+        _posix_release_lock()
+
+
+# ── Windows: named kernel mutex ────────────────────────────────
+
+_MUTEX_NAME = "Local\\StandTallPro-InstanceLock"
+
+
+def _win32_acquire_mutex() -> bool:
+    global _lock_mutex
+    try:
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.windll.kernel32
+        k32.CreateMutexW.argtypes = [wintypes.LPCVOID, wintypes.BOOL, wintypes.LPCWSTR]
+        k32.CreateMutexW.restype = wintypes.HANDLE
+        k32.CloseHandle.argtypes = [wintypes.HANDLE]
+        k32.CloseHandle.restype = wintypes.BOOL
+        k32.GetLastError.restype = wintypes.DWORD
+
+        mt = k32.CreateMutexW(None, False, _MUTEX_NAME)
+        if not mt:
+            return False
+        if k32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
+            k32.CloseHandle(mt)
+            return False
+        _lock_mutex = mt
+        return True
+    except Exception:
+        return False
+
+
+def _win32_release_mutex():
+    global _lock_mutex
+    if _lock_mutex:
+        try:
+            import ctypes
+            ctypes.windll.kernel32.CloseHandle(_lock_mutex)
+        except Exception:
+            pass
+        _lock_mutex = None
+
+
+# ── Linux / macOS: PID file ────────────────────────────────────
+
+
+def _posix_acquire_lock() -> bool:
     try:
         if os.path.isdir(_lock_file):
             import shutil
@@ -312,7 +357,7 @@ def _acquire_lock() -> bool:
         if os.path.exists(_lock_file):
             with open(_lock_file, "r") as f:
                 pid = f.read().strip()
-            if pid and _is_process_alive(int(pid)):
+            if pid and _posix_is_alive(int(pid)):
                 return False
         with open(_lock_file, "w") as f:
             f.write(str(os.getpid()))
@@ -321,7 +366,7 @@ def _acquire_lock() -> bool:
         return False
 
 
-def _release_lock():
+def _posix_release_lock():
     try:
         if os.path.exists(_lock_file):
             with open(_lock_file, "r") as f:
@@ -330,6 +375,14 @@ def _release_lock():
                 os.remove(_lock_file)
     except Exception:
         pass
+
+
+def _posix_is_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+        return True
+    except (OSError, ValueError):
+        return False
 
 
 if __name__ == "__main__":
