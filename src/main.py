@@ -28,10 +28,11 @@ class StandTallApp:
             eye_care_interval_seconds=self.config.get("eye_care_interval_seconds", 1200),
             eye_care_duration_seconds=self.config.get("eye_care_duration_seconds", 20),
             notifications_enabled=self.config.get("notifications_enabled", True),
+            nudge_enabled=self.config.get("nudge_enabled", False),
         )
         self.engine = TimerEngine(self.timer_config)
         self.engine.on_stand_reminder = lambda m: notify("StandTall Pro", m)
-        self.engine.on_eye_care_reminder = lambda m: notify("StandTall Pro \u2014 Eye Care", m)
+        self.engine.on_eye_care_reminder = self._on_eye_care
 
         self._tray_icon: Optional[pystray.Icon] = None
         self._ui_window = None
@@ -48,6 +49,7 @@ class StandTallApp:
             "theme": "dark",
             "start_on_boot": False,
             "notifications_enabled": True,
+            "nudge_enabled": False,
             "first_launch": True,
         }
         try:
@@ -241,6 +243,14 @@ class StandTallApp:
         if self.root:
             self.root.after(500, self._poll_signals)
 
+    # ── eye care callback ────────────────────────────────────────────
+
+    def _on_eye_care(self, message: str):
+        notify("StandTall Pro \u2014 Eye Care", message)
+        if self.config.get("nudge_enabled", False):
+            from nudge import show_break_nudge
+            show_break_nudge(message, self.timer_config.eye_care_duration_seconds)
+
     # ── public API ──────────────────────────────────────────────────
 
     def update_config(self, key: str, value):
@@ -254,6 +264,8 @@ class StandTallApp:
             self.timer_config.eye_care_duration_seconds = value
         elif key == "notifications_enabled":
             self.timer_config.notifications_enabled = value
+        elif key == "nudge_enabled":
+            self.timer_config.nudge_enabled = value
         elif key == "start_on_boot":
             self._enable_startup(value)
 

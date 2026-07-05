@@ -139,6 +139,22 @@ class SettingsWindow(ctk.CTkToplevel):
             font=ctk.CTkFont(size=12),
         ).grid(row=0, column=1, padx=(0, 14), pady=8, sticky="ew")
 
+        # Nudge toggle
+        nudge_frame = ctk.CTkFrame(body, fg_color=c["card_bg"], corner_radius=10)
+        nudge_frame.grid(row=row, column=0, sticky="ew", pady=(0, 10))
+        row += 1
+
+        self._nudge_var = ctk.BooleanVar(value=self.app.config.get("nudge_enabled", False))
+        ctk.CTkSwitch(
+            nudge_frame,
+            text="Break nudges (full-screen eye break overlay)",
+            variable=self._nudge_var,
+            command=self._on_nudge,
+            font=ctk.CTkFont(size=13),
+            text_color=c["fg"],
+            progress_color=c["accent_eye"],
+        ).grid(row=0, column=0, padx=14, pady=12, sticky="w")
+
         # Auto-start
         auto_frame = ctk.CTkFrame(body, fg_color=c["card_bg"], corner_radius=10)
         auto_frame.grid(row=row, column=0, sticky="ew", pady=(0, 10))
@@ -207,6 +223,9 @@ class SettingsWindow(ctk.CTkToplevel):
         for w in self.winfo_children():
             w.destroy()
         self._init_ui()
+
+    def _on_nudge(self):
+        self.app.update_config("nudge_enabled", self._nudge_var.get())
 
     def _on_startup(self):
         self.app.update_config("start_on_boot", self._startup_var.get())

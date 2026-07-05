@@ -39,6 +39,7 @@ class TimerConfig:
     eye_care_interval_seconds: int = 1200
     eye_care_duration_seconds: int = 20
     notifications_enabled: bool = True
+    nudge_enabled: bool = False
 
 
 class TimerEngine:
