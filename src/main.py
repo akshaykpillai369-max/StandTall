@@ -172,6 +172,16 @@ class StandTallApp:
         icon.stop()
         os._exit(0)
 
+    def _update_tray_tooltip(self):
+        while True:
+            if self._tray_icon and not self.engine.is_paused:
+                ns = self.engine.get_next_stand_seconds()
+                ne = self.engine.get_next_eye_care_seconds()
+                self._tray_icon.title = (
+                    f"Stand\u2191 {int(ns//60)}m  Eye {int(ne//60)}m"
+                )
+            time.sleep(2)
+
     def _on_tray_pause(self, icon, item):
         if self.engine.is_paused:
             self.engine.resume()
@@ -288,6 +298,7 @@ class StandTallApp:
         )
         self._tray_icon = pystray.Icon("StandTall Pro", image, "StandTall Pro", menu)
         threading.Thread(target=self._tray_icon.run, daemon=True).start()
+        threading.Thread(target=self._update_tray_tooltip, daemon=True).start()
 
         if self.config.get("first_launch", True):
             self.config["first_launch"] = False
