@@ -183,6 +183,18 @@ class SettingsWindow(ctk.CTkToplevel):
         ).grid(row=row, column=0, sticky="ew", pady=(0, 10))
         row += 1
 
+        # Check for updates
+        ctk.CTkButton(
+            body, text="\U0001f504 Check for Updates",
+            command=self._check_update,
+            fg_color=c["card_bg"],
+            hover_color=c["button_bg"],
+            text_color=c["fg"],
+            font=ctk.CTkFont(size=13),
+            corner_radius=10,
+        ).grid(row=row, column=0, sticky="ew", pady=(0, 10))
+        row += 1
+
         # Size
         self.update_idletasks()
         w = 400
@@ -238,6 +250,25 @@ class SettingsWindow(ctk.CTkToplevel):
 
     def _open_stats(self):
         StatsPopup(self)
+
+    def _check_update(self):
+        from updater import check_for_update_async, get_current_version
+
+        def _on_result(result):
+            self.after(0, lambda: self._show_update_result(result))
+
+        check_for_update_async(_on_result)
+
+    def _show_update_result(self, result):
+        from updater import get_current_version
+        if result is None:
+            _msg_popup(self, "Update Check", f"You're up to date (v{get_current_version()}).")
+        else:
+            body = result.get("body", "")[:300]
+            _msg_popup(
+                self, "Update Available",
+                f"Version {result['version']} is available.\n\n{body}\n\nDownload:\n{result['url']}",
+            )
 
     def _on_nudge(self):
         self.app.update_config("nudge_enabled", self._nudge_var.get())
@@ -368,3 +399,41 @@ class StatsPopup(ctk.CTkToplevel):
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
         self.geometry(f"{w}x{h}+{(sw - w) // 2}+{(sh - h) // 2}")
+
+
+def _msg_popup(parent, title: str, message: str):
+    popup = ctk.CTkToplevel(parent)
+    popup.title(title)
+    popup.resizable(False, False)
+    popup.transient(parent)
+    c = parent.theme["colors"] if hasattr(parent, "theme") else {"bg": "#1a1a2e", "fg": "#e0e0e0", "card_bg": "#16213e"}
+    popup.configure(fg_color=c["bg"])
+    popup.grid_columnconfigure(0, weight=1)
+    body = ctk.CTkFrame(popup, fg_color=c["bg"], corner_radius=0)
+    body.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+    body.grid_columnconfigure(0, weight=1)
+    ctk.CTkLabel(
+        body, text=title,
+        font=ctk.CTkFont(size=16, weight="bold"),
+        text_color=c["fg"],
+    ).grid(row=0, column=0, pady=(0, 12), sticky="w")
+    ctk.CTkLabel(
+        body, text=message,
+        font=ctk.CTkFont(size=13),
+        text_color=c["fg"],
+        wraplength=340,
+        justify="left",
+    ).grid(row=1, column=0, pady=(0, 16), sticky="w")
+    ctk.CTkButton(
+        body, text="OK",
+        command=popup.destroy,
+        fg_color=c["card_bg"],
+        text_color=c["fg"],
+        width=80,
+    ).grid(row=2, column=0, sticky="e")
+    popup.update_idletasks()
+    w = 380
+    h = popup.winfo_reqheight()
+    sw = popup.winfo_screenwidth()
+    sh = popup.winfo_screenheight()
+    popup.geometry(f"{w}x{h}+{(sw - w) // 2}+{(sh - h) // 2}")
