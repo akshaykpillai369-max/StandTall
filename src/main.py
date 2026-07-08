@@ -82,7 +82,7 @@ class StandTallApp:
                     r"Software\Microsoft\Windows\CurrentVersion\Run",
                     0, winreg.KEY_SET_VALUE)
                 if enabled:
-                    winreg.SetValueEx(key, "StandTall Pro", 0, winreg.REG_SZ, sys.executable)
+                    winreg.SetValueEx(key, "StandTall Pro", 0, winreg.REG_SZ, f'"{sys.executable}" --silent')
                 else:
                     try: winreg.DeleteValue(key, "StandTall Pro")
                     except FileNotFoundError: pass
@@ -98,6 +98,7 @@ class StandTallApp:
                         "<key>Label</key><string>com.standtall</string>"
                         "<key>ProgramArguments</key><array>"
                         f"<string>{sys.executable}</string>"
+                        "<string>--silent</string>"
                         "</array>"
                         "<key>RunAtLoad</key><true/>"
                         "</dict></plist>"
@@ -114,7 +115,7 @@ class StandTallApp:
                         "[Desktop Entry]\n"
                         "Type=Application\n"
                         "Name=StandTall Pro\n"
-                        f"Exec={sys.executable}\n"
+                        f"Exec={sys.executable} --silent\n"
                         "X-GNOME-Autostart-enabled=true\n"
                     )
                     os.makedirs(os.path.dirname(desktop), exist_ok=True)
@@ -286,7 +287,7 @@ class StandTallApp:
         elif key == "start_on_boot":
             self._enable_startup(value)
 
-    def run(self):
+    def run(self, silent=False):
         self.engine.start()
 
         image = self._create_tray_image()
@@ -304,8 +305,9 @@ class StandTallApp:
             self.config["first_launch"] = False
             self._save_config()
 
-        time.sleep(0.5)
-        self._open_ui()
+        if not silent:
+            time.sleep(0.5)
+            self._open_ui()
 
         while True:
             for path in (_signal_path, _ui_signal_path):
@@ -428,4 +430,4 @@ if __name__ == "__main__":
     atexit.register(_release_lock)
 
     app = StandTallApp()
-    app.run()
+    app.run(silent="--silent" in sys.argv)
