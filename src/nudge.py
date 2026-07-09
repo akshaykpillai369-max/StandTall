@@ -1,6 +1,7 @@
 import threading
 import time
-import customtkinter as ctk
+import tkinter as tk
+from tkinter import ttk
 
 
 def show_break_nudge(message: str, duration_seconds: int = 20):
@@ -10,70 +11,70 @@ def show_break_nudge(message: str, duration_seconds: int = 20):
 
 
 def _run_nudge(message: str, duration_seconds: int):
-    root = ctk.CTk()
+    root = tk.Tk()
     root.title("Eye Break")
     root.attributes("-fullscreen", True)
     root.attributes("-topmost", True)
-    root.configure(fg_color="#0D0D0D")
+    root.configure(bg="#0D0D0D")
 
-    frame = ctk.CTkFrame(root, fg_color="#1A1A2E", corner_radius=16)
+    frame = tk.Frame(root, bg="#1A1A2E", highlightbackground="#2A2A4A", highlightthickness=1)
     frame.place(relx=0.5, rely=0.5, anchor="center")
 
-    ctk.CTkLabel(
+    tk.Label(
         frame,
         text="\U0001f441\ufe0f Eye Break Time",
-        font=ctk.CTkFont(size=32, weight="bold"),
-        text_color="#4FC3F7",
+        font=("Segoe UI", 32, "bold"),
+        fg="#4FC3F7", bg="#1A1A2E",
     ).pack(pady=(30, 10), padx=60)
 
-    ctk.CTkLabel(
+    tk.Label(
         frame,
         text=message,
-        font=ctk.CTkFont(size=16),
-        text_color="#B0BEC5",
-        wraplength=500,
+        font=("Segoe UI", 16),
+        fg="#B0BEC5", bg="#1A1A2E",
+        wraplength=500, justify="center",
     ).pack(pady=(0, 20), padx=40)
 
-    remaining = ctk.IntVar(value=duration_seconds)
-    countdown_label = ctk.CTkLabel(
+    remaining = tk.IntVar(value=duration_seconds)
+    tk.Label(
         frame,
         textvariable=remaining,
-        font=ctk.CTkFont(size=48, weight="bold"),
-        text_color="#FFFFFF",
-    )
-    countdown_label.pack(pady=(0, 10))
+        font=("Segoe UI", 48, "bold"),
+        fg="#FFFFFF", bg="#1A1A2E",
+    ).pack(pady=(0, 10))
 
-    ctk.CTkLabel(
+    tk.Label(
         frame,
         text="seconds remaining",
-        font=ctk.CTkFont(size=12),
-        text_color="#78909C",
+        font=("Segoe UI", 12),
+        fg="#78909C", bg="#1A1A2E",
     ).pack(pady=(0, 20))
 
-    progress = ctk.CTkProgressBar(frame, width=300, height=8)
+    progress = ttk.Progressbar(frame, length=300, mode="determinate", maximum=100)
     progress.pack(pady=(0, 20), padx=40)
-    progress.set(1.0)
 
     def skip():
         root.destroy()
 
-    ctk.CTkButton(
+    tk.Button(
         frame,
         text="Dismiss",
         command=skip,
-        fg_color="#37474F",
-        hover_color="#455A64",
-        font=ctk.CTkFont(size=14),
-        width=120,
+        font=("Segoe UI", 14),
+        bg="#37474F", fg="#FFFFFF",
+        activebackground="#455A64", activeforeground="#FFFFFF",
+        borderwidth=0, padx=30, pady=6, cursor="hand2",
     ).pack(pady=(0, 30))
 
+    progress["value"] = 100
     start = time.time()
 
     def tick():
         elapsed = time.time() - start
         left = max(0, duration_seconds - int(elapsed))
         remaining.set(left)
-        progress.set(left / duration_seconds if duration_seconds else 0)
+        pct = (left / duration_seconds) * 100 if duration_seconds else 0
+        progress["value"] = pct
         if left > 0:
             root.after(200, tick)
         else:
