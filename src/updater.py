@@ -4,7 +4,7 @@ import urllib.request
 import urllib.error
 from typing import Optional
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 _GITHUB_API = "https://api.github.com/repos/akshaykpillai369-max/StandTall/releases/latest"
 
