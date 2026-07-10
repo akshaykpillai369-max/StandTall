@@ -51,7 +51,6 @@ def show_break_nudge(message: str, duration_seconds: int = 20):
     def skip():
         nonlocal dismissed
         dismissed = True
-        root.destroy()
 
     tk.Button(
         frame,
