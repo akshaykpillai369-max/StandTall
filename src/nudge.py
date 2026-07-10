@@ -1,16 +1,9 @@
-import threading
 import time
 import tkinter as tk
 from tkinter import ttk
 
 
 def show_break_nudge(message: str, duration_seconds: int = 20):
-    threading.Thread(
-        target=_run_nudge, args=(message, duration_seconds), daemon=True
-    ).start()
-
-
-def _run_nudge(message: str, duration_seconds: int):
     root = tk.Tk()
     root.title("Eye Break")
     root.attributes("-fullscreen", True)
@@ -53,7 +46,11 @@ def _run_nudge(message: str, duration_seconds: int):
     progress = ttk.Progressbar(frame, length=300, mode="determinate", maximum=100)
     progress.pack(pady=(0, 20), padx=40)
 
+    dismissed = False
+
     def skip():
+        nonlocal dismissed
+        dismissed = True
         root.destroy()
 
     tk.Button(
@@ -68,17 +65,17 @@ def _run_nudge(message: str, duration_seconds: int):
 
     progress["value"] = 100
     start = time.time()
+    deadline = start + duration_seconds
 
-    def tick():
+    while root.winfo_exists() and time.time() < deadline and not dismissed:
         elapsed = time.time() - start
         left = max(0, duration_seconds - int(elapsed))
         remaining.set(left)
-        pct = (left / duration_seconds) * 100 if duration_seconds else 0
-        progress["value"] = pct
-        if left > 0:
-            root.after(200, tick)
-        else:
-            root.destroy()
+        progress["value"] = (left / duration_seconds) * 100 if duration_seconds else 0
+        root.update()
+        time.sleep(0.05)
 
-    root.after(200, tick)
-    root.mainloop()
+    try:
+        root.destroy()
+    except tk.TclError:
+        pass

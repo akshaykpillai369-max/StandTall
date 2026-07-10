@@ -5,6 +5,7 @@ import threading
 import tempfile
 import time
 import platform
+import queue
 from typing import Optional
 
 import pystray
@@ -37,6 +38,7 @@ class StandTallApp:
         self._tray_icon: Optional[pystray.Icon] = None
         self._ui_window = None
         self.root = None
+        self._nudge_queue: queue.Queue = queue.Queue()
 
     # ── config ──────────────────────────────────────────────────────
 
@@ -173,16 +175,6 @@ class StandTallApp:
         icon.stop()
         os._exit(0)
 
-    def _update_tray_tooltip(self):
-        while True:
-            if self._tray_icon and not self.engine.is_paused:
-                ns = self.engine.get_next_stand_seconds()
-                ne = self.engine.get_next_eye_care_seconds()
-                self._tray_icon.title = (
-                    f"Stand\u2191 {int(ns//60)}m  Eye {int(ne//60)}m"
-                )
-            time.sleep(2)
-
     def _on_tray_pause(self, icon, item):
         if self.engine.is_paused:
             self.engine.resume()
@@ -251,6 +243,12 @@ class StandTallApp:
                     pass
                 self._open_ui()
                 return
+        try:
+            msg, dur = self._nudge_queue.get_nowait()
+            from nudge import show_break_nudge
+            show_break_nudge(msg, dur)
+        except queue.Empty:
+            pass
         if self.root:
             self.root.after(500, self._poll_signals)
 
@@ -266,8 +264,7 @@ class StandTallApp:
         from stats import record_eye_break
         record_eye_break()
         if self.config.get("nudge_enabled", False):
-            from nudge import show_break_nudge
-            show_break_nudge(message, self.timer_config.eye_care_duration_seconds)
+            self._nudge_queue.put((message, self.timer_config.eye_care_duration_seconds))
 
     # ── public API ──────────────────────────────────────────────────
 
@@ -299,7 +296,6 @@ class StandTallApp:
         )
         self._tray_icon = pystray.Icon("StandTall Pro", image, "StandTall Pro", menu)
         threading.Thread(target=self._tray_icon.run, daemon=True).start()
-        threading.Thread(target=self._update_tray_tooltip, daemon=True).start()
 
         if self.config.get("first_launch", True):
             self.config["first_launch"] = False
@@ -309,7 +305,9 @@ class StandTallApp:
             time.sleep(0.5)
             self._open_ui()
 
+        _last_tooltip_update = 0.0
         while True:
+            now = time.time()
             for path in (_signal_path, _ui_signal_path):
                 if os.path.exists(path):
                     try:
@@ -317,6 +315,25 @@ class StandTallApp:
                     except Exception:
                         pass
                     self._open_ui()
+
+            try:
+                msg, dur = self._nudge_queue.get_nowait()
+                from nudge import show_break_nudge
+                show_break_nudge(msg, dur)
+            except queue.Empty:
+                pass
+
+            if self._tray_icon and now - _last_tooltip_update >= 2.0:
+                _last_tooltip_update = now
+                if self.engine.is_paused:
+                    self._tray_icon.title = "StandTall Pro [PAUSED]"
+                else:
+                    ns = self.engine.get_next_stand_seconds()
+                    ne = self.engine.get_next_eye_care_seconds()
+                    self._tray_icon.title = (
+                        f"Stand\u2191 {int(ns//60)}m  Eye {int(ne//60)}m"
+                    )
+
             time.sleep(0.5)
 
 
