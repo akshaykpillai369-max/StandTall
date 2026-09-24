@@ -20,6 +20,8 @@ StandTall Pro is a health-focused utility designed for people who spend long hou
 - **Streak Tracking** — shows time since your last break
 - **Auto-Update Check** — queries GitHub releases and notifies you when a newer version is available
 - **Cross-platform** — works on Windows, macOS, and Linux
+- **Cursor Inactivity Pause** — automatically pauses the timer after five minutes of cursor inactivity and resumes when you move the cursor again.
+
 
 ## First Launch
 
