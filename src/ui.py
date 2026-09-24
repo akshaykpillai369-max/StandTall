@@ -4,6 +4,7 @@ import json
 import customtkinter as ctk
 from PIL import Image, ImageTk
 from paths import resource_path
+from logic import IDLE_THRESHOLD_SECONDS
 
 
 THEMES_DIR = resource_path("themes")
@@ -101,6 +102,13 @@ class SettingsWindow(ctk.CTkToplevel):
         )
         self._streak_lbl.grid(row=0, column=2, padx=12, pady=10, sticky="e")
 
+        self._idle_lbl = ctk.CTkLabel(
+            body, text="Idle \u2014",
+            font=ctk.CTkFont(size=12), text_color=c["text_secondary"],
+        )
+        self._idle_lbl.grid(row=row, column=0, pady=(0, 14), sticky="w")
+        row += 1
+
         # Stand reminder row
         self._build_slider(body, row, "\u23f1 Stand every", "stand_interval_seconds",
                            c["accent_stand"], c, 1, 60, 60)
@@ -154,6 +162,11 @@ class SettingsWindow(ctk.CTkToplevel):
             text_color=c["fg"],
             progress_color=c["accent_eye"],
         ).grid(row=0, column=0, padx=14, pady=12, sticky="w")
+
+        # Overlay duration row
+        self._build_slider(body, row, "\u23f1\ufe0f Overlay time", "overlay_duration_seconds",
+                           c["accent_eye"], c, 1, 5, 5)
+        row += 1
 
         # Auto-start
         auto_frame = ctk.CTkFrame(body, fg_color=c["card_bg"], corner_radius=10)
@@ -214,12 +227,18 @@ class SettingsWindow(ctk.CTkToplevel):
             text_color=c["fg"],
         ).grid(row=0, column=0, padx=(14, 8), pady=(10, 4), sticky="w")
 
-        current_val = min(
-            getattr(self.engine.config, key) // 60, to
-        )
+        val_seconds = getattr(self.engine.config, key)
+        if key == "overlay_duration_seconds":
+            current_val = min(max(val_seconds // 60, from_), to)
+            unit = " min"
+            multiplier = 60
+        else:
+            current_val = min(val_seconds // 60, to)
+            unit = " min"
+            multiplier = 60
         var = ctk.IntVar(value=current_val)
         value_label = ctk.CTkLabel(
-            frame, text=f"{current_val} min",
+            frame, text=f"{current_val}{unit}",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color=accent,
         )
@@ -228,7 +247,7 @@ class SettingsWindow(ctk.CTkToplevel):
         slider = ctk.CTkSlider(
             frame, from_=from_, to=to, number_of_steps=steps - 1,
             variable=var,
-            command=lambda v, k=key, vl=value_label, a=accent: self._on_slider(v, k, vl, a),
+            command=lambda v, k=key, vl=value_label, a=accent, m=multiplier, u=unit: self._on_slider(v, k, vl, a, m, u),
             fg_color=c["slider_bg"],
             progress_color=accent,
             button_color=accent,
@@ -236,10 +255,10 @@ class SettingsWindow(ctk.CTkToplevel):
         )
         slider.grid(row=1, column=0, columnspan=2, padx=14, pady=(0, 10), sticky="ew")
 
-    def _on_slider(self, value, key, label, accent):
+    def _on_slider(self, value, key, label, accent, multiplier=60, unit=" min"):
         val = int(value)
-        label.configure(text=f"{val} min")
-        self.app.update_config(key, val * 60)
+        label.configure(text=f"{val}{unit}")
+        self.app.update_config(key, val * multiplier)
 
     def _on_theme(self, choice):
         mapping = {"Dark": "dark", "Light": "light", "High Contrast": "high_contrast"}
@@ -299,7 +318,29 @@ class SettingsWindow(ctk.CTkToplevel):
             text=f"Streak {streak:.1f}h",
             text_color=c["text_secondary"],
         )
-        self.after(2000, self._poll)
+        self._update_idle()
+        self.after(1000, self._poll)
+
+    def _update_idle(self):
+        tracker = getattr(self.app, "idle_tracker", None)
+        if tracker is None:
+            self._idle_lbl.configure(text="Idle \u2014")
+            return
+        idle = tracker.get_idle_time_seconds()
+        if idle > 0:
+            m, s = int(idle // 60), int(idle % 60)
+            remaining = IDLE_THRESHOLD_SECONDS - idle
+            if remaining > 0:
+                rm, rs = int(remaining // 60), int(remaining % 60)
+                text = f"Idle {m}m {s:02d}s \u00b7 away in {rm}m {rs:02d}s"
+                color = self.theme["colors"]["text_secondary"]
+            else:
+                text = f"Idle {m}m {s:02d}s \u00b7 timers paused"
+                color = self.theme["colors"]["accent_eye"]
+        else:
+            text = "Idle 0m 00s"
+            color = self.theme["colors"]["text_secondary"]
+        self._idle_lbl.configure(text=text, text_color=color)
 
 
 class StatsPopup(ctk.CTkToplevel):

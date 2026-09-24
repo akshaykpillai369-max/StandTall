@@ -2,8 +2,10 @@
     "stand_interval_seconds": 3600,
     "eye_care_interval_seconds": 1200,
     "eye_care_duration_seconds": 20,
+    "overlay_duration_seconds": 20,
     "theme": "dark",
     "start_on_boot": false,
     "notifications_enabled": true,
+    "nudge_enabled": false,
     "first_launch": true
 }

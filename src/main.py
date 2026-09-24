@@ -14,6 +14,7 @@ from PIL import Image, ImageDraw
 from logic import TimerEngine, TimerConfig
 from paths import config_path, project_root
 from notify import notify
+from idle import IdleTracker
 
 
 _signal_path = os.path.join(tempfile.gettempdir(), "StandTallPro.show")
@@ -28,10 +29,12 @@ class StandTallApp:
             stand_interval_seconds=self.config.get("stand_interval_seconds", 3600),
             eye_care_interval_seconds=self.config.get("eye_care_interval_seconds", 1200),
             eye_care_duration_seconds=self.config.get("eye_care_duration_seconds", 20),
+            overlay_duration_seconds=self.config.get("overlay_duration_seconds", 20),
             notifications_enabled=self.config.get("notifications_enabled", True),
             nudge_enabled=self.config.get("nudge_enabled", False),
         )
-        self.engine = TimerEngine(self.timer_config)
+        self.idle_tracker = IdleTracker()
+        self.engine = TimerEngine(self.timer_config, idle_tracker=self.idle_tracker)
         self.engine.on_stand_reminder = self._on_stand
         self.engine.on_eye_care_reminder = self._on_eye_care
 
@@ -48,6 +51,7 @@ class StandTallApp:
             "stand_interval_seconds": 3600,
             "eye_care_interval_seconds": 1200,
             "eye_care_duration_seconds": 20,
+            "overlay_duration_seconds": 20,
             "theme": "dark",
             "start_on_boot": False,
             "notifications_enabled": True,
@@ -172,6 +176,7 @@ class StandTallApp:
 
     def _on_tray_quit(self, icon, item):
         self.engine.stop()
+        self.idle_tracker.stop()
         icon.stop()
         os._exit(0)
 
@@ -264,7 +269,7 @@ class StandTallApp:
         from stats import record_eye_break
         record_eye_break()
         if self.config.get("nudge_enabled", False):
-            self._nudge_queue.put((message, self.timer_config.eye_care_duration_seconds))
+            self._nudge_queue.put((message, self.timer_config.overlay_duration_seconds))
 
     # ── public API ──────────────────────────────────────────────────
 
@@ -277,6 +282,8 @@ class StandTallApp:
             self.timer_config.eye_care_interval_seconds = value
         elif key == "eye_care_duration_seconds":
             self.timer_config.eye_care_duration_seconds = value
+        elif key == "overlay_duration_seconds":
+            self.timer_config.overlay_duration_seconds = value
         elif key == "notifications_enabled":
             self.timer_config.notifications_enabled = value
         elif key == "nudge_enabled":
@@ -285,6 +292,7 @@ class StandTallApp:
             self._enable_startup(value)
 
     def run(self, silent=False):
+        self.idle_tracker.start()
         self.engine.start()
 
         image = self._create_tray_image()

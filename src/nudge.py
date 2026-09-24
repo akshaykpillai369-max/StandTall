@@ -3,12 +3,33 @@ import tkinter as tk
 from tkinter import ttk
 
 
+def _cover_screen(root):
+    try:
+        import ctypes
+        user32 = ctypes.windll.user32
+        x = user32.GetSystemMetrics(76)   # SM_XVIRTUALSCREEN
+        y = user32.GetSystemMetrics(77)   # SM_YVIRTUALSCREEN
+        w = user32.GetSystemMetrics(78)   # SM_CXVIRTUALSCREEN
+        h = user32.GetSystemMetrics(79)   # SM_CYVIRTUALSCREEN
+        if w > 0 and h > 0:
+            root.geometry(f"{w}x{h}+{x}+{y}")
+            return
+    except Exception:
+        pass
+    sw = root.winfo_screenwidth()
+    sh = root.winfo_screenheight()
+    root.geometry(f"{sw}x{sh}+0+0")
+
+
 def show_break_nudge(message: str, duration_seconds: int = 20):
     root = tk.Tk()
     root.title("Eye Break")
-    root.attributes("-fullscreen", True)
+    root.overrideredirect(True)
     root.attributes("-topmost", True)
     root.configure(bg="#0D0D0D")
+    _cover_screen(root)
+    root.update_idletasks()
+    root.focus_force()
 
     frame = tk.Frame(root, bg="#1A1A2E", highlightbackground="#2A2A4A", highlightthickness=1)
     frame.place(relx=0.5, rely=0.5, anchor="center")
@@ -52,6 +73,8 @@ def show_break_nudge(message: str, duration_seconds: int = 20):
         nonlocal dismissed
         dismissed = True
 
+    root.bind("<Escape>", lambda e: skip())
+
     tk.Button(
         frame,
         text="Dismiss",
@@ -61,6 +84,8 @@ def show_break_nudge(message: str, duration_seconds: int = 20):
         activebackground="#455A64", activeforeground="#FFFFFF",
         borderwidth=0, padx=30, pady=6, cursor="hand2",
     ).pack(pady=(0, 30))
+
+    root.update()
 
     progress["value"] = 100
     start = time.time()
